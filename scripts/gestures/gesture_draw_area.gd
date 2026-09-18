@@ -40,6 +40,8 @@ signal gesture_started()
 @export_group("Authoring")
 ## Prints the drawn stroke to the Output panel as a ready-to-paste template.
 @export var record_mode := false
+## Prints match results (top-3 scores, MATCH/no-match lines) to the Output panel.
+@export var debug_prints := false
 
 var recognizer := GestureRecognizer.new()
 
@@ -96,6 +98,8 @@ func _end() -> void:
 		print(recognizer.to_template_literal(stroke))
 
 	if stroke.size() < min_points or _length(stroke) < min_path_length:
+		if debug_prints:
+			print("ignored — stroke too short (%d pts, %.0f px)" % [stroke.size(), _length(stroke)])
 		gesture_finished.emit([])
 		gesture_rejected.emit("", 0.0)
 		return
@@ -103,14 +107,24 @@ func _end() -> void:
 	var ranked := recognizer.rank(stroke)
 	gesture_finished.emit(ranked)
 
+	if debug_prints:
+		for r in ranked.slice(0, 3):
+			print("    %s: %.3f" % [r["id"], r["score"]])
+
 	if ranked.is_empty():
+		if debug_prints:
+			print("no match")
 		gesture_rejected.emit("", 0.0)
 		return
 
 	var best: Dictionary = ranked[0]
 	if best["score"] >= min_score:
+		if debug_prints:
+			print("MATCH: %s (%.2f)" % [best["id"], best["score"]])
 		gesture_matched.emit(best["id"], best["score"])
 	else:
+		if debug_prints:
+			print("no match — closest was %s (%.2f)" % [best["id"], best["score"]])
 		gesture_rejected.emit(best["id"], best["score"])
 
 
