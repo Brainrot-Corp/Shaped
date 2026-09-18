@@ -1,14 +1,17 @@
 [gd_scene format=3 uid="uid://c0mdt7pc0fp5c"]
 
-[ext_resource type="Script" uid="uid://brxbiu5u88u5q" path="res://scripts/test/test_gestures.gd" id="1_wmopx"]
-[ext_resource type="Script" uid="uid://cwtofoovlu2p1" path="res://scripts/gestures/gesture_draw_area.gd" id="2_4kqsj"]
+[ext_resource type="Script" uid="uid://brxbiu5u88u5q" path="res://scripts/test/test_gestures.gd" id="1_bl13t"]
+[ext_resource type="Script" uid="uid://cwtofoovlu2p1" path="res://scripts/gestures/gesture_draw_area.gd" id="2_iyx0m"]
 
 [node name="Node2D" type="Node2D" unique_id=1477525659]
-script = ExtResource("1_wmopx")
+script = ExtResource("1_bl13t")
 
 [node name="DrawArea" type="Control" parent="." unique_id=161190793]
-layout_mode = 3
-anchors_preset = 0
-offset_right = 1152.0
-offset_bottom = 648.0
-script = ExtResource("2_4kqsj")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_default_cursor_shape = 3
+script = ExtResource("2_iyx0m")

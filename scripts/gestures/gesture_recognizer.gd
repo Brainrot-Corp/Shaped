@@ -13,6 +13,7 @@ const HALF_DIAGONAL := 176.7767    ## 0.5 * sqrt(SQUARE_SIZE^2 * 2)
 const GOLDEN := 0.6180339887498949
 const ANGLE_PRECISION := 0.0349066 ## 2 degrees, in radians
 const THIN_RATIO := 0.25           ## below this aspect ratio, scale uniformly instead
+const CLOSED_RATIO := 0.35         ## start-end distance / path length below this counts as a closed stroke
 
 ## When true, a shape matches at any orientation (a rotated "V" still reads as "V").
 ## For a combat system you usually want this OFF, so that ^ and V are different spells.
@@ -29,6 +30,7 @@ var rotation_tolerance_deg := 18.0
 
 var _raw := {}     # String -> Array[PackedVector2Array]
 var _cooked := {}  # String -> Array[PackedVector2Array]
+var _closed := {}  # String -> Array[bool] — per-variant closedness
 
 
 #region Public API
@@ -43,18 +45,22 @@ func add_template(id: String, points: PackedVector2Array) -> void:
 	if not _raw.has(id):
 		_raw[id] = []
 		_cooked[id] = []
+		_closed[id] = []
 	_raw[id].append(points)
 	_cooked[id].append(_normalize(points))
+	_closed[id].append(_is_closed(points))
 
 
 func remove_template(id: String) -> void:
 	_raw.erase(id)
 	_cooked.erase(id)
+	_closed.erase(id)
 
 
 func clear_templates() -> void:
 	_raw.clear()
 	_cooked.clear()
+	_closed.clear()
 
 
 func get_template_ids() -> Array:
@@ -72,6 +78,8 @@ func recognize(points: PackedVector2Array) -> Dictionary:
 
 ## Every template scored against the stroke, best first.
 ## Useful for debugging ("why did my fireball come out as a shield?").
+## Closed strokes are only scored against closed templates and vice versa,
+## so a wobbly square can never be read as a circle by a sloppy line.
 func rank(points: PackedVector2Array) -> Array:
 	var out: Array = []
 	if points.size() < 2 or _cooked.is_empty():
@@ -79,18 +87,28 @@ func rank(points: PackedVector2Array) -> Array:
 
 	var candidate := _normalize(points)
 	var bound := deg_to_rad(45.0) if rotation_invariant else deg_to_rad(rotation_tolerance_deg)
+	var stroke_closed := _is_closed(points)
 
 	for id in _cooked:
 		var best := INF
-		for tpl in _cooked[id]:
-			best = minf(best, _distance_at_best_angle(candidate, tpl, -bound, bound))
+		var variants: Array = _cooked[id]
+		var closed_flags: Array = _closed[id]
+		for i in variants.size():
+			if closed_flags[i] != stroke_closed:
+				continue
+			best = minf(best, _distance_at_best_angle(candidate, variants[i], -bound, bound))
+		if best == INF:
+			continue  # this shape has no templates of the right closedness
 		out.append({
 			"id": id,
 			"score": clampf(1.0 - best / HALF_DIAGONAL, 0.0, 1.0),
 			"distance": best,
 		})
 
-	out.sort_custom(func(a, b): return a["score"] > b["score"])
+	out.sort_custom(func(a, b):
+		if a["score"] != b["score"]:
+			return a["score"] > b["score"]
+		return a["distance"] < b["distance"])
 	return out
 
 
@@ -114,6 +132,17 @@ func _rebuild() -> void:
 		for pts in _raw[id]:
 			cooked.append(_normalize(pts))
 		_cooked[id] = cooked
+
+
+## A stroke is "closed" when its endpoints nearly meet, judged against its
+## total path length. Circles drawn with a small gap still count as closed.
+func _is_closed(points: PackedVector2Array) -> bool:
+	if points.size() < 3:
+		return false
+	var length := _path_length(points)
+	if length <= 0.0:
+		return false
+	return points[0].distance_to(points[points.size() - 1]) / length < CLOSED_RATIO
 
 
 func _normalize(points: PackedVector2Array) -> PackedVector2Array:

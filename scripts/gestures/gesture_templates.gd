@@ -35,17 +35,24 @@ static func install_defaults(rec: GestureRecognizer) -> void:
 		Vector2(0, -90), Vector2(45, -35)]))
 
 	# --- closed shapes -----------------------------------------------------
-	# The player will not always start a circle at the same place, so each of
-	# these is registered several times with a different starting point.
-	add_closed_shape(rec, "circle", circle_points(90.0, 32), 8)
-	add_closed_shape(rec, "circle", circle_points(90.0, 32, true), 8)
+	# The player will not always start a closed shape at the same place or
+	# trace it in the same direction, so each is registered with the same
+	# number of variants: 4 starting points x 2 directions = 8 each. Keeping
+	# the counts equal stops shapes with more variants from winning by volume.
+	var circle := circle_points(90.0, 32)
+	add_closed_shape(rec, "circle", circle, 4)
+	add_closed_shape(rec, "circle", reverse_loop(circle), 4)
 
-	add_closed_shape(rec, "triangle", PackedVector2Array([
-		Vector2(0, -90), Vector2(78, 45), Vector2(-78, 45), Vector2(0, -90)]), 3)
+	var triangle := PackedVector2Array([
+		Vector2(0, -90), Vector2(78, 45), Vector2(-78, 45), Vector2(0, -90)])
+	add_closed_shape(rec, "triangle", triangle, 4)
+	add_closed_shape(rec, "triangle", reverse_loop(triangle), 4)
 
-	add_closed_shape(rec, "square", PackedVector2Array([
+	var square := PackedVector2Array([
 		Vector2(-70, -70), Vector2(70, -70), Vector2(70, 70),
-		Vector2(-70, 70), Vector2(-70, -70)]), 4)
+		Vector2(-70, 70), Vector2(-70, -70)])
+	add_closed_shape(rec, "square", square, 4)
+	add_closed_shape(rec, "square", reverse_loop(square), 4)
 
 
 ## Registers a closed shape `variants` times, each starting from a different
@@ -86,6 +93,13 @@ static func sample_path(vertices: PackedVector2Array, count: int) -> PackedVecto
 		var length := vertices[seg - 1].distance_to(vertices[seg])
 		var t := 0.0 if length <= 0.0 else clampf((target - seg_start) / length, 0.0, 1.0)
 		out.append(vertices[seg - 1].lerp(vertices[seg], t))
+	return out
+
+
+## Same outline traced the other way around (expects a closed loop).
+static func reverse_loop(vertices: PackedVector2Array) -> PackedVector2Array:
+	var out := vertices.duplicate()
+	out.reverse()
 	return out
 
 
